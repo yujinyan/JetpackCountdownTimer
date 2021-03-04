@@ -36,7 +36,6 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Pause
@@ -126,7 +125,6 @@ class TimerViewModel : ViewModel() {
         started.value = false
     }
 }
-
 
 @Composable
 fun CountDownTimerScreen(viewModel: TimerViewModel = TimerViewModel()) {
