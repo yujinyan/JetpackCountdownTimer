@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
 @Composable
 fun MyApp() {
     Surface(color = MaterialTheme.colors.background) {
-        CountDownTimerScreen()
+        CountdownTimerScreen()
     }
 }
 
@@ -127,7 +127,7 @@ class TimerViewModel : ViewModel() {
 }
 
 @Composable
-fun CountDownTimerScreen(viewModel: TimerViewModel = TimerViewModel()) {
+fun CountdownTimerScreen(viewModel: TimerViewModel = TimerViewModel()) {
     val duration = viewModel.duration.collectAsState()
     val isStarted = viewModel.started.collectAsState(false)
 
@@ -139,7 +139,7 @@ fun CountDownTimerScreen(viewModel: TimerViewModel = TimerViewModel()) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            CountDownTimer(duration.value) {
+            CountdownTimer(duration.value) {
                 viewModel.duration.value = it
             }
         }
@@ -162,7 +162,7 @@ fun CountDownTimerScreen(viewModel: TimerViewModel = TimerViewModel()) {
 
 @OptIn(ExperimentalTime::class)
 @Composable
-fun CountDownTimer(
+fun CountdownTimer(
     duration: TimerDuration,
     setDuration: (TimerDuration) -> Unit,
 ) {
