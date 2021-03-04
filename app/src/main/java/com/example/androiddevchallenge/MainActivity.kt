@@ -19,20 +19,20 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -42,14 +42,13 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,7 +61,6 @@ import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 
@@ -85,7 +83,7 @@ fun MyApp() {
     }
 }
 
-class TimerViewModel2 : ViewModel() {
+class TimerViewModel : ViewModel() {
     val duration = MutableStateFlow(TimerDuration(0, 0, 0))
     val started = MutableStateFlow(false)
 
@@ -130,14 +128,8 @@ class TimerViewModel2 : ViewModel() {
 }
 
 
-val digitStyle = TextStyle(
-    fontFamily = FontFamily.Monospace,
-    fontSize = 72.sp
-)
-
 @Composable
-fun CountDownTimerScreen(viewModel: TimerViewModel2 = TimerViewModel2()) {
-    val (isEditing, setEditing) = remember { mutableStateOf(false) }
+fun CountDownTimerScreen(viewModel: TimerViewModel = TimerViewModel()) {
     val duration = viewModel.duration.collectAsState()
     val isStarted = viewModel.started.collectAsState(false)
 
@@ -149,7 +141,7 @@ fun CountDownTimerScreen(viewModel: TimerViewModel2 = TimerViewModel2()) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            CountDownTimer(duration.value, isEditing) {
+            CountDownTimer(duration.value) {
                 viewModel.duration.value = it
             }
         }
@@ -158,15 +150,13 @@ fun CountDownTimerScreen(viewModel: TimerViewModel2 = TimerViewModel2()) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconButton(onClick = { setEditing(!isEditing) }) {
-                Icon(Icons.Default.Edit, contentDescription = "edit")
-            }
+            val modifier = Modifier.size(72.dp)
 
             if (isStarted.value) IconButton(onClick = { viewModel.stop() }) {
-                Icon(Icons.Filled.Pause, contentDescription = "pause")
+                Icon(Icons.Filled.Pause, contentDescription = "pause", modifier = modifier)
             }
             else IconButton(onClick = { viewModel.start() }) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = "start")
+                Icon(Icons.Filled.PlayArrow, contentDescription = "start", modifier = modifier)
             }
         }
     }
@@ -176,17 +166,15 @@ fun CountDownTimerScreen(viewModel: TimerViewModel2 = TimerViewModel2()) {
 @Composable
 fun CountDownTimer(
     duration: TimerDuration,
-    isEditing: Boolean = false,
     setDuration: (TimerDuration) -> Unit,
 ) {
-
-    CountdownDigit(duration.hours(), range = 0..24, isEditing = isEditing) {
+    CountdownDigit(duration.hours(), range = 0..24) {
         setDuration(duration.updatedHour(it))
     }
-    CountdownDigit(duration.minutes(), isEditing = isEditing) {
+    CountdownDigit(duration.minutes()) {
         setDuration(duration.updatedMinute(it))
     }
-    CountdownDigit(duration.seconds(), isEditing = isEditing) {
+    CountdownDigit(duration.seconds()) {
         setDuration(duration.updatedSecond(it))
     }
 }
@@ -195,31 +183,49 @@ fun CountDownTimer(
 fun CountdownDigit(
     number: Int,
     range: IntRange = 0..60,
-    isEditing: Boolean = false,
     onNumberChange: ((Int) -> Unit)? = null
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        val text = "%02d".format(number)
         IconButton(onClick = { onNumberChange?.invoke((number + 1).coerceAtMost(range.last)) }) {
             Icon(Icons.Filled.ExpandLess, contentDescription = "increase")
         }
-        if (isEditing) OutlinedTextField(
-            modifier = Modifier.width(120.dp),
-            value = text,
-            onValueChange = { /*TODO*/ },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            textStyle = digitStyle
-        ) else Crossfade(targetState = text) {
+        AnimatedDigit(number = number)
+        IconButton(onClick = { onNumberChange?.invoke((number - 1).coerceAtLeast(range.first)) }) {
+            Icon(Icons.Default.ExpandMore, contentDescription = "decrease")
+        }
+    }
+}
+
+private val digitFormat = "%02d"
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+fun AnimatedDigit(number: Int) {
+    val (prevNumber, setNumber) = remember { mutableStateOf(number) }
+    LaunchedEffect(key1 = number, block = { setNumber(number) })
+
+    Box {
+        AnimatedVisibility(
+            visible = number != prevNumber,
+            enter = slideInVertically()
+        ) {
             Text(
-                text = text,
+                text = digitFormat.format(number),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 72.sp
             )
         }
-        IconButton(onClick = { onNumberChange?.invoke((number - 1).coerceAtLeast(range.first)) }) {
-            Icon(Icons.Default.ExpandMore, contentDescription = "decrease")
+        AnimatedVisibility(
+            visible = number == prevNumber,
+            exit = slideOutVertically()
+        ) {
+            Text(
+                text = digitFormat.format(prevNumber),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 72.sp
+            )
         }
     }
 }
